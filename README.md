@@ -10,7 +10,7 @@
 
 ---
 
-🌍 Calculadora Geográfica de Distância (Leaflet & Haversine)
+# 🌍 Calculadora Geográfica de Distância (Leaflet & Haversine)
 
 ![JavaScript](https://img.shields.io/badge/Frontend-JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?logo=tailwindcss&logoColor=white)
@@ -25,7 +25,7 @@ Este projeto implementa uma ferramenta interativa para calcular a distância geo
 
 ---
 
-✨ Destaques do Projeto
+## ✨ Destaques do Projeto
 
  * Fórmula de Haversine: Utilização da fórmula matemática padrão para calcular a distância mais curta sobre a superfície de uma esfera (Grande Círculo), resultando em medições precisas em quilômetros.
  * Leaflet.js & OpenStreetMap (OSM): Uso de bibliotecas de mapeamento gratuitas e robustas, sem a necessidade de chaves de API pagas.
@@ -35,7 +35,7 @@ Este projeto implementa uma ferramenta interativa para calcular a distância geo
 
 ---
 
-🧠 Tecnologias utilizadas
+## 🧠 Tecnologias utilizadas
 
  * Framework de Mapa: Leaflet.js
  * Provedor de Mapa: OpenStreetMap (OSM)
@@ -44,7 +44,7 @@ Este projeto implementa uma ferramenta interativa para calcular a distância geo
 
 ---
 
-🧩 Estrutura do Projeto
+## 🧩 Estrutura do Projeto
 
 leaflet-haversine-distance-calculator/
 ├── index.html        <-- Contém todo o código (Mapa, JS, Lógica Haversine e CSS/Tailwind).
@@ -52,7 +52,7 @@ leaflet-haversine-distance-calculator/
 
 ---
 
-⚙️ Configuração e Instalação
+## ⚙️ Configuração e Instalação
 
 Pré-requisitos
 Nenhum pré-requisito especial. O projeto é executado inteiramente no navegador e utiliza CDNs.
@@ -62,7 +62,7 @@ Execução
 
 ---
 
-📝 Instruções de Uso
+## 📝 Instruções de Uso
 
  * Definir Ponto A: Clique ou toque no primeiro local do mapa (o marcador verde 'A' aparecerá).
  * Definir Ponto B: Clique ou toque no segundo local do mapa (o marcador laranja 'B' aparecerá e a linha será desenhada).
