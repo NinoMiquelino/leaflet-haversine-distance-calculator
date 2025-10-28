@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Distância no Mapa</title>
+    <meta name="author" content="Onivaldo Miquelino">          
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4CAF50', // Verde vibrante
+                        'secondary': '#FF9800', // Laranja para destaque
+                        'background': '#f4f4f4',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Leaflet CSS e JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha2d-p4NxBMTgddhQ082iN/zH/k9oD7L/L2VnI6pXw5L8V+8"
+        crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha2d-eS9vC7qD0/f/yK3x9zK+5/qgKjP6l8uD9I6V8I2O8w+M"
+        crossorigin=""></script>
+    <style>
+        /* Define a altura do mapa e garante que ele ocupe todo o espaço disponível na tela */
+        #map { height: 100%; min-height: 400px; border-radius: 0.75rem; }
+        /* Garante que o container principal ocupe a altura total da tela */
+        .full-page-container { min-height: 100vh; }
+        .leaflet-container {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 full-page-container flex items-start justify-center p-4">
+
+    <!-- Container Principal Responsivo -->
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-4 sm:p-6 my-4">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center"> Calculadora de Distância (OSM)</h1>
+        <p class="text-center text-gray-600 mb-6">Clique em dois pontos no mapa para calcular a distância em linha reta.</p>
+
+        <!-- Painel de Controle e Mapa -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Painel de Resultados (Fixo para Mobile, Esquerda para Desktop) -->
+            <div id="controls" class="lg:col-span-1 bg-gray-50 p-4 rounded-lg shadow-md order-2 lg:order-1">
+                <h2 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">Seus Pontos:</h2>
+                
+                <div class="space-y-3">
+                    <div id="statusA" class="flex items-center p-2 rounded-lg bg-red-100 border border-red-300">
+                        <span class="font-bold text-red-600 mr-2">A:</span>
+                        <span id="coordA" class="text-gray-700 text-sm">Aguardando clique...</span>
+                    </div>
+                    
+                    <div id="statusB" class="flex items-center p-2 rounded-lg bg-gray-100 border border-gray-300">
+                        <span class="font-bold text-gray-600 mr-2">B:</span>
+                        <span id="coordB" class="text-gray-700 text-sm">Aguardando clique...</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 pt-3 border-t">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-3">Distância Calculada:</h2>
+                    <p id="distanceResult" class="text-3xl font-extrabold text-primary">0.00 km</p>
+                    <p id="distanceDetails" class="text-sm text-gray-500 mt-1">Defina os pontos A e B para calcular.</p>
+                </div>
+                
+                <button onclick="resetMap()" 
+                        class="w-full mt-6 py-3 px-4 bg-secondary hover:bg-orange-600 text-white font-bold rounded-lg transition duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-secondary/50">
+                    Reiniciar Pontos
+                </button>
+            </div>
+
+            <!-- Área do Mapa -->
+            <div id="map" class="lg:col-span-2 order-1 lg:order-2">
+                <!-- O mapa será injetado aqui pelo Leaflet -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let map;
+        let points = [];
+        let markers = [];
+        let polyline = null;
+        
+        // Cores dos marcadores para identificação
+        const ICON_COLORS = {
+            A: '#4CAF50', // Verde
+            B: '#FF9800'  // Laranja
+        };
+
+        // --- 1. Inicialização do Mapa ---
+        function initMap() {
+            // Inicializa o mapa com localização padrão (Centro do Brasil)
+            map = L.map('map').setView([-14.235, -51.925], 4); 
+
+            // Adiciona as camadas do OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Adiciona o listener de clique no mapa
+            map.on('click', handleMapClick);
+
+            // Inicializa a ferramenta de reset
+            resetMap();
+        }
+
+        // --- 2. Fórmula de Haversine (Cálculo da Distância) ---
+        /**
+         * Calcula a distância em km entre duas coordenadas usando a Fórmula de Haversine.
+         */
+        function haversineDistance(latlng1, latlng2) {
+            const R = 6371; // Raio médio da Terra em quilômetros
+            const lat1 = latlng1.lat;
+            const lon1 = latlng1.lng;
+            const lat2 = latlng2.lat;
+            const lon2 = latlng2.lng;
+
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            const distance = R * c; // Distância em km
+            return distance;
+        }
+
+        // --- 3. Manipulador de Clique no Mapa ---
+        function handleMapClick(e) {
+            if (points.length < 2) {
+                // Adiciona o novo ponto
+                points.push(e.latlng);
+                
+                const pointIndex = points.length - 1;
+                const isPointA = pointIndex === 0;
+                const label = isPointA ? 'A' : 'B';
+
+                // Cria o ícone personalizado
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color: ${ICON_COLORS[label]}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">${label}</div>`,
+                    iconSize: [30, 42],
+                    iconAnchor: [15, 30] // Ajusta para o ponto estar na base
+                });
+
+                // Adiciona o marcador
+                const marker = L.marker(e.latlng, { icon: customIcon }).addTo(map);
+                markers.push(marker);
+
+                // Atualiza o painel de status
+                updateStatus(e.latlng, label);
+                
+                // Se ambos os pontos estiverem definidos, calcula
+                if (points.length === 2) {
+                    calculateAndDraw();
+                }
+            } else {
+                // Se já houver 2 pontos, pede para reiniciar
+                document.getElementById('distanceDetails').textContent = 'Máximo de 2 pontos. Por favor, clique em "Reiniciar Pontos".';
+            }
+        }
+
+        // --- 4. Atualização da Interface ---
+        function updateStatus(latlng, label) {
+            const containerId = label === 'A' ? 'coordA' : 'coordB';
+            const statusBoxId = label === 'A' ? 'statusA' : 'statusB';
+
+            document.getElementById(containerId).textContent = 
+                `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+
+            // Atualiza a cor e o status
+            document.getElementById(statusBoxId).classList.remove('bg-gray-100', 'border-gray-300', 'bg-red-100', 'border-red-300');
+            document.getElementById(statusBoxId).classList.add(
+                label === 'A' ? 'bg-primary/20' : 'bg-secondary/20',
+                label === 'A' ? 'border-primary' : 'border-secondary'
+            );
+            document.getElementById(statusBoxId).querySelector('span.font-bold').classList.add(
+                label === 'A' ? 'text-primary' : 'text-secondary'
+            );
+        }
+
+        // --- 5. Cálculo e Desenho da Rota ---
+        function calculateAndDraw() {
+            if (points.length === 2) {
+                const distance = haversineDistance(points[0], points[1]);
+                
+                // Exibe o resultado
+                document.getElementById('distanceResult').textContent = `${distance.toFixed(2)} km`;
+                document.getElementById('distanceDetails').textContent = 
+                    `A distância em linha reta (Haversine) é de ${distance.toFixed(2)} quilômetros.`;
+                
+                // Desenha a linha no mapa
+                if (polyline) {
+                    map.removeLayer(polyline);
+                }
+                polyline = L.polyline(points, { 
+                    color: ICON_COLORS.A,
+                    weight: 5,
+                    opacity: 0.7 
+                }).addTo(map);
+
+                // Ajusta o zoom para que ambos os pontos fiquem visíveis
+                map.fitBounds(polyline.getBounds());
+            }
+        }
+
+        // --- 6. Reset ---
+        window.resetMap = function() {
+            // Remove marcadores e linha
+            markers.forEach(m => map.removeLayer(m));
+            if (polyline) {
+                map.removeLayer(polyline);
+            }
+
+            // Limpa o estado
+            points = [];
+            markers = [];
+            polyline = null;
+
+            // Reinicia a interface
+            document.getElementById('distanceResult').textContent = '0.00 km';
+            document.getElementById('distanceDetails').textContent = 'Defina os pontos A e B para calcular.';
+            
+            // Reinicia o status A
+            document.getElementById('coordA').textContent = 'Aguardando clique...';
+            document.getElementById('statusA').className = 'flex items-center p-2 rounded-lg bg-red-100 border border-red-300';
+            document.getElementById('statusA').querySelector('span.font-bold').classList.remove('text-primary');
+            document.getElementById('statusA').querySelector('span.font-bold').classList.remove('text-secondary');
+            document.getElementById('statusA').querySelector('span.font-bold').classList.add('text-red-600');
+            
+            // Reinicia o status B
+            document.getElementById('coordB').textContent = 'Aguardando clique...';
+            document.getElementById('statusB').className = 'flex items-center p-2 rounded-lg bg-gray-100 border border-gray-300';
+            document.getElementById('statusB').querySelector('span.font-bold').classList.remove('text-primary');
+            document.getElementById('statusB').querySelector('span.font-bold').classList.remove('text-secondary');
+            document.getElementById('statusB').querySelector('span.font-bold').classList.add('text-gray-600');
+        }
+
+        // Inicia o mapa quando o DOM estiver carregado
+        window.onload = initMap;
+    </script>
+</body>
+</html>
