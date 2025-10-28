@@ -46,12 +46,13 @@ Este projeto implementa uma ferramenta interativa para calcular a distância geo
 
 ## 🧩 Estrutura do Projeto
 
+```
 leaflet-haversine-distance-calculator/
 ├── index.html
 ├── README.md
 ├── .gitignore
 └── LICENSE
-
+```
 ---
 
 ## ⚙️ Configuração e Instalação
